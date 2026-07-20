@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Gölgen Peşinde — Karakuzu Games</title>
+<style>
+  html, body { margin: 0; padding: 0; width: 100%; height: 100%; background: #06080f; overflow: hidden; overscroll-behavior: none; }
+  body { display: flex; align-items: center; justify-content: center; touch-action: none; }
+  canvas { display: block; background: #06080f; touch-action: none; }
+</style>
+<script src="https://www.youtube.com/game_api/v1"></script>
+</head>
+<body>
+<canvas id="game"></canvas>
+<script>
+  // ---- YouTube Playables SDK köprüsü (SDK yoksa - örn. yerel test - sessizce atlanır) ----
+  var inPlayables = typeof ytgame !== "undefined" && ytgame.IN_PLAYABLES_ENV;
+
+  window.ytFirstFrame = function () {
+    if (!inPlayables) return;
+    try {
+      ytgame.game.firstFrameReady();
+      ytgame.game.gameReady();
+    } catch (e) {}
+  };
+
+  window.ytReportScore = function (score) {
+    if (!inPlayables) return;
+    try { ytgame.game.sendScore({ value: Math.max(0, Math.floor(score)) }); } catch (e) {}
+  };
+
+  // ---- bölüm arası geçiş reklamı: doğal duraklama noktası (her 10 dalgada bir) ----
+  window.ytShowInterstitial = function () {
+    if (!inPlayables || !ytgame.ads || !ytgame.ads.requestInterstitialAd) return Promise.resolve();
+    return ytgame.ads.requestInterstitialAd().catch(function () {});
+  };
+
+  var saveLoaded = !inPlayables;   // Playables disinda kayit aninda localStorage'a yazilir
+  window.ytSaveData = function (obj) {
+    if (!inPlayables || !saveLoaded) return;
+    try { ytgame.game.saveData(JSON.stringify(obj)); } catch (e) {}
+  };
+
+  if (inPlayables) {
+    try {
+      ytgame.system.onPause(function () {
+        if (window.GolgeApp) { window.GolgeApp.systemPaused = true; window.GolgeApp.sfx.suspend(); }
+      });
+      ytgame.system.onResume(function () {
+        if (window.GolgeApp) {
+          window.GolgeApp.systemPaused = false;
+          window.GolgeApp.sfx.unsuspend();
+          window.GolgeApp.sfx.setMuted(!ytgame.system.isAudioEnabled());
+        }
+      });
+      ytgame.system.onAudioEnabledChange(function (enabled) {
+        if (window.GolgeApp) window.GolgeApp.sfx.setMuted(!enabled);
+      });
+      (function waitAudioInit() {
+        if (!window.GolgeApp) { setTimeout(waitAudioInit, 30); return; }
+        window.GolgeApp.sfx.setMuted(!ytgame.system.isAudioEnabled());
+      })();
+      ytgame.game.loadData().then(function (raw) {
+        saveLoaded = true;
+        if (!raw) return;
+        try {
+          var d = JSON.parse(raw);
+          var waitApp = function () {
+            if (!window.GolgeApp) { setTimeout(waitApp, 30); return; }
+            if (d.maxChapter) window.GolgeApp.maxChapter = d.maxChapter;
+            if (d.high) window.GolgeApp.high = d.high;
+            if (d.lang) window.GolgeApp.lang = d.lang;
+          };
+          waitApp();
+        } catch (e) {}
+      }).catch(function () { saveLoaded = true; });
+    } catch (e) { saveLoaded = true; }
+  }
+</script>
+<script src="game.js"></script>
+</body>
+</html>
