@@ -144,6 +144,7 @@ const UI = {
     gates_left: "{0} BÖLÜMÜNDE {1} GEÇİT KALDI",
     dash_ready: "SAĞ TIK/ATAK: HAZIR", dash_cd: "ATAK: {0}sn",
     dash_btn: "ATAK",
+    pause_menu_btn: "ANA MENÜ",
   },
   EN: {
     score: "SCORE", shadow: "SHADOW", ball: "BALL", chapter: "CHAPTER", wave: "WAVE",
@@ -168,6 +169,7 @@ const UI = {
     gates_left: "{1} GATES LEFT IN {0}",
     dash_ready: "RIGHT-CLICK/DASH: READY", dash_cd: "DASH: {0}s",
     dash_btn: "DASH",
+    pause_menu_btn: "MAIN MENU",
   },
 };
 
@@ -547,8 +549,8 @@ class App {
     this._loadSave();
 
     // dikdortgenler (menu/over ekranlari)
-    this.trRect = { x: WIN_W / 2 - 96, y: 16, w: 88, h: 40 };
-    this.enRect = { x: WIN_W / 2 + 8, y: 16, w: 88, h: 40 };
+    this.trRect = { x: WIN_W / 2 - 104, y: 12, w: 96, h: 56 };   // >=48dp dokunma hedefi (best practice)
+    this.enRect = { x: WIN_W / 2 + 8, y: 12, w: 96, h: 56 };
     this.overContRect = { x: WIN_W / 2 - 250, y: 797, w: 230, h: 70 };
     this.overRestartRect = { x: WIN_W / 2 + 20, y: 797, w: 230, h: 70 };
     this.dashBtnRect = { x: VIEW_W - 106, y: BAND_TOP + VIEW_H - 122, w: 88, h: 88 };   // drawPlay() her karede gunceller
@@ -595,12 +597,13 @@ class App {
     } catch (e) {}
   }
   saveNow() {
-    try {
-      localStorage.setItem("golge_save", JSON.stringify({
-        maxChapter: this.maxChapter, high: this.high, lang: this.lang,
-      }));
-    } catch (e) {}
-    if (window.ytSaveData) window.ytSaveData({ maxChapter: this.maxChapter, high: this.high, lang: this.lang });
+    const data = { maxChapter: this.maxChapter, high: this.high, lang: this.lang };
+    if (window.ytInPlayables) {
+      // Playables icinde: SADECE resmi bulut kaydi kullanilir (kendi yerel mekanizmamiz devre disi)
+      if (window.ytSaveData) window.ytSaveData(data);
+    } else {
+      try { localStorage.setItem("golge_save", JSON.stringify(data)); } catch (e) {}
+    }
   }
 
   // ---- çizim yardımcıları ----
@@ -1208,7 +1211,7 @@ class App {
     ctx.fillRect(0, BAND_TOP - 3, WIN_W, 3);
     ctx.fillRect(0, WIN_H - BAND_BOT, WIN_W, 3);
 
-    const xL = WIN_W * 0.17, xC = WIN_W / 2, xR = WIN_W * 0.83;
+    const xL = WIN_W * 0.22, xC = WIN_W / 2, xR = WIN_W * 0.83;
     this.text(this.CN(ch - 1), xL, 26, [150, 220, 235], { size: 17 });
     this.text(this.T("shadow") + " X" + g.echoSpawns.length, xL, 52, ORANGE, { size: 13 });
     this.star(xL - 20, 76, 10, YELLOW);
@@ -1258,11 +1261,32 @@ class App {
     }
     if (g.finaleT > 0) this.text(this.T("bonus") + " " + (Math.floor(g.finaleT / FPS) + 1), WIN_W / 2, BAND_TOP + 60, YELLOW, { size: 26 });
 
+    // ust-sol duraklat dugmesi: dokunmatikte ESC tusu karsiligi, her zaman erisilebilir olmali
+    {
+      const px = 32, py = 32, pr = 27;   // >=48dp dokunma hedefine yakin (best practice)
+      ctx.fillStyle = "rgba(10,16,30,0.75)";
+      ctx.beginPath(); ctx.arc(px, py, pr, 0, 7); ctx.fill();
+      ctx.strokeStyle = "rgb(150,165,190)"; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(px, py, pr, 0, 7); ctx.stroke();
+      if (this.paused) {
+        ctx.beginPath(); ctx.moveTo(px - 6, py - 8); ctx.lineTo(px + 8, py); ctx.lineTo(px - 6, py + 8); ctx.closePath();
+        ctx.fillStyle = "rgb(150,165,190)"; ctx.fill();
+      } else {
+        ctx.fillStyle = "rgb(150,165,190)";
+        ctx.fillRect(px - 7, py - 8, 5, 16); ctx.fillRect(px + 2, py - 8, 5, 16);
+      }
+      this.pauseBtnRect = { x: px - pr, y: py - pr, w: pr * 2, h: pr * 2 };
+    }
+
     if (this.paused) {
       ctx.fillStyle = "rgba(0,0,0,0.67)";
       ctx.fillRect(0, 0, WIN_W, WIN_H);
-      this.text(this.T("paused"), WIN_W / 2, WIN_H / 2 - 60, CYAN, { size: 42 });
-      this.text(this.T("paused_hint"), WIN_W / 2, WIN_H / 2, WHITE, { size: 20 });
+      this.text(this.T("paused"), WIN_W / 2, WIN_H / 2 - 100, CYAN, { size: 42 });
+      this.text(this.T("paused_hint"), WIN_W / 2, WIN_H / 2 - 44, WHITE, { size: 17 });
+      this.pauseMenuRect = { x: WIN_W / 2 - 210, y: WIN_H / 2 + 10, w: 190, h: 64 };
+      this.pauseRestartRect = { x: WIN_W / 2 + 20, y: WIN_H / 2 + 10, w: 190, h: 64 };
+      this.button(this.pauseMenuRect, this.T("pause_menu_btn"), CYAN);
+      this.button(this.pauseRestartRect, this.T("over_restart"), [226, 120, 90]);
     }
   }
 
@@ -1406,6 +1430,12 @@ class App {
     } else if (this.scene === "WON") {
       this.scene = "MENU";
     } else if (this.scene === "PLAY") {
+      if (this.pauseBtnRect && this._inRect(x, y, this.pauseBtnRect)) { this.paused = !this.paused; return; }
+      if (this.paused) {
+        if (this.pauseMenuRect && this._inRect(x, y, this.pauseMenuRect)) { this.scene = "MENU"; this.paused = false; }
+        else if (this.pauseRestartRect && this._inRect(x, y, this.pauseRestartRect)) this.start(1);
+        return;   // duraklatilmisken arenaya dokunmak atagi tetiklemesin
+      }
       if (this._inRect(x, y, this.dashBtnRect)) this.tryDash(x, y);
     }
   }
@@ -1508,7 +1538,9 @@ class App {
 window.GolgeApp = null;
 window.addEventListener("DOMContentLoaded", () => {
   const canvas = document.getElementById("game");
-  canvas.width = WIN_W; canvas.height = WIN_H;
+  const dpr = window.devicePixelRatio || 1;   // yuksek yogunluklu ekranlarda bulanik gorunmesin
+  canvas.width = Math.round(WIN_W * dpr); canvas.height = Math.round(WIN_H * dpr);
+  canvas.getContext("2d").scale(dpr, dpr);
   const app = new App(canvas);
   window.GolgeApp = app;
 

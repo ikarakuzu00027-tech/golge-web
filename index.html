@@ -16,6 +16,7 @@
 <script>
   // ---- YouTube Playables SDK köprüsü (SDK yoksa - örn. yerel test - sessizce atlanır) ----
   var inPlayables = typeof ytgame !== "undefined" && ytgame.IN_PLAYABLES_ENV;
+  window.ytInPlayables = inPlayables;   // Playables icindeyken oyunun kendi yerel kayit mekanizmasini (localStorage) devre disi birakmasi icin
 
   window.ytFirstFrame = function () {
     if (!inPlayables) return;
@@ -45,7 +46,11 @@
   if (inPlayables) {
     try {
       ytgame.system.onPause(function () {
-        if (window.GolgeApp) { window.GolgeApp.systemPaused = true; window.GolgeApp.sfx.suspend(); }
+        if (window.GolgeApp) {
+          window.GolgeApp.systemPaused = true;
+          window.GolgeApp.sfx.suspend();
+          window.GolgeApp.saveNow();   // onPause anında ilerleme kaydedilmeli (entegrasyon şartı)
+        }
       });
       ytgame.system.onResume(function () {
         if (window.GolgeApp) {
