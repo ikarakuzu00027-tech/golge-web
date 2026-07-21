@@ -10,13 +10,13 @@ const BALL_R = 20, ECHO_R = 14, TARGET_R = 44;
 const SPEED = 5.3;
 const DASH_DIST = 150, DASH_COOLDOWN = FPS * 3;
 
-// Karemsi pencere: arena ortada, HUD yan panellerde
-const BAND_TOP = 30, BAND_BOT = 30;
-const VIEW_H = 760;
-const VIEW_W = Math.floor(VIEW_H * W / H);
-const SIDE = 270;
-const ARENA_X = SIDE;
-const WIN_W = SIDE * 2 + VIEW_W, WIN_H = BAND_TOP + VIEW_H + BAND_BOT;
+// Dikey (mobil-öncelikli) pencere: arena ortada, HUD üst+alt bantlarda.
+// Playables ağırlıklı mobil dikeyde oynanıyor - PC/genişte bu pillarbox olur (ekosistemde normal).
+const VIEW_W = 600;
+const VIEW_H = Math.round(VIEW_W * H / W);
+const BAND_TOP = 130, BAND_BOT = 150;
+const ARENA_X = 0;
+const WIN_W = VIEW_W, WIN_H = BAND_TOP + VIEW_H + BAND_BOT;
 const SX = VIEW_W / W, SY = VIEW_H / H;
 
 function mx(x) { return ARENA_X + x * SX; }
@@ -549,9 +549,9 @@ class App {
     // dikdortgenler (menu/over ekranlari)
     this.trRect = { x: WIN_W / 2 - 96, y: 16, w: 88, h: 40 };
     this.enRect = { x: WIN_W / 2 + 8, y: 16, w: 88, h: 40 };
-    this.overContRect = { x: WIN_W / 2 - 250, y: 560, w: 230, h: 70 };
-    this.overRestartRect = { x: WIN_W / 2 + 20, y: 560, w: 230, h: 70 };
-    this.dashBtnRect = { x: ARENA_X + VIEW_W + SIDE / 2 - 65, y: 250, w: 130, h: 36 };
+    this.overContRect = { x: WIN_W / 2 - 250, y: 797, w: 230, h: 70 };
+    this.overRestartRect = { x: WIN_W / 2 + 20, y: 797, w: 230, h: 70 };
+    this.dashBtnRect = { x: VIEW_W - 106, y: BAND_TOP + VIEW_H - 122, w: 88, h: 88 };   // drawPlay() her karede gunceller
 
     this._bindInput();
   }
@@ -1193,47 +1193,55 @@ class App {
       ctx.fillRect(ARENA_X, BAND_TOP, VIEW_W, VIEW_H);
     }
 
-    // yan paneller (karemsi pencere HUD)
+    // ust + alt HUD bantlari (dikey/mobil-oncelikli duzen)
     ctx.fillStyle = "rgb(6,8,16)";
-    ctx.fillRect(0, 0, ARENA_X, WIN_H);
-    ctx.fillRect(ARENA_X + VIEW_W, 0, SIDE, WIN_H);
-    ctx.fillRect(ARENA_X, 0, VIEW_W, BAND_TOP);
-    ctx.fillRect(ARENA_X, WIN_H - BAND_BOT, VIEW_W, BAND_BOT);
+    ctx.fillRect(0, 0, WIN_W, BAND_TOP);
+    ctx.fillRect(0, WIN_H - BAND_BOT, WIN_W, BAND_BOT);
     ctx.fillStyle = "rgb(70,150,190)";
-    ctx.fillRect(ARENA_X - 3, 0, 3, WIN_H);
-    ctx.fillRect(ARENA_X + VIEW_W, 0, 3, WIN_H);
-    const lx = ARENA_X / 2;
-    this.text(this.CN(ch - 1), lx, 70, [150, 220, 235], { size: 26 });
-    this.text(this.T("shadow") + " X" + g.echoSpawns.length, lx, 122, ORANGE, { size: 20 });
-    this.star(lx - 24, 158, 13, YELLOW);
-    this.text(String(g.starsRun), lx + 12, 158, YELLOW, { size: 20 });
-    this.drawLogo(lx, WIN_H / 2, 130);
-    this.text(this.T("chapter") + " " + ch, lx, WIN_H - 104, [220, 230, 243], { size: 30 });
-    this.text(this.T("wave") + " " + g.wave, lx, WIN_H - 62, [220, 230, 243], { size: 30 });
-    const rx = ARENA_X + VIEW_W + SIDE / 2;
-    this.text(this.T("score"), rx, 48, [180, 186, 198], { size: 20 });
-    this.text(String(g.score), rx, 96, YELLOW, { size: 42 });
+    ctx.fillRect(0, BAND_TOP - 3, WIN_W, 3);
+    ctx.fillRect(0, WIN_H - BAND_BOT, WIN_W, 3);
+
+    const xL = WIN_W * 0.17, xC = WIN_W / 2, xR = WIN_W * 0.83;
+    this.text(this.CN(ch - 1), xL, 26, [150, 220, 235], { size: 17 });
+    this.text(this.T("shadow") + " X" + g.echoSpawns.length, xL, 52, ORANGE, { size: 13 });
+    this.star(xL - 20, 76, 10, YELLOW);
+    this.text(String(g.starsRun), xL + 14, 76, YELLOW, { size: 15 });
+    this.text(this.T("score"), xC, 20, [180, 186, 198], { size: 15 });
+    this.text(String(g.score), xC, 60, YELLOW, { size: 34 });
     for (let hh = 0; hh < 3; hh++) {
       const col = hh < g.lives ? HEARTC : [64, 54, 60];
-      this.heart(rx - 34 + hh * 34, 160, 12, col);
+      this.heart(xR - 24 + hh * 24, 26, 9, col);
     }
-    this.text(this.T("ball") + " X" + g.ballsLeft, rx, 202, WHITE, { size: 20 });
-    if (g.dashCd <= 0) this.text(this.T("dash_ready"), rx, 232, [120, 230, 150], { size: 16 });
-    else this.text(this.T("dash_cd").replace("{0}", Math.floor(g.dashCd / FPS) + 1), rx, 232, [140, 150, 170], { size: 16 });
-    this.button(this.dashBtnRect, this.T("dash_btn"), g.dashCd <= 0 ? [120, 230, 150] : [90, 100, 120]);
+    this.text(this.T("ball") + " X" + g.ballsLeft, xR, 56, WHITE, { size: 15 });
     if (g.finaleT === 0) {
       const nLeft = ch * 10 - g.wave + 1;
       const msg2 = this.T("gates_left").replace("{0}", this.CN(ch - 1)).replace("{1}", nLeft);
-      let gy2 = 306;
-      for (const line of this.wrap(msg2, SIDE - 30, 16)) { this.text(line, rx, gy2, [200, 212, 232], { size: 16 }); gy2 += 19; }
+      this.text(msg2, xC, 104, [200, 212, 232], { size: 13 });
     }
-    this.text("KARAKUZU GAMES", rx, WIN_H - 30, [110, 125, 148], { size: 16 });
+
+    this.text(this.T("chapter") + " " + ch + ": " + this.CN(ch - 1), xC, WIN_H - BAND_BOT + 38, [220, 230, 243], { size: 22 });
+    this.text(this.T("wave") + " " + g.wave, xC, WIN_H - BAND_BOT + 74, [220, 230, 243], { size: 22 });
+    this.text("KARAKUZU GAMES", xC, WIN_H - 14, [110, 125, 148], { size: 13 });
+
+    // ATAK: arenanin sag-alt kosesinde yuzen dairesel aksiyon dugmesi (mobil konvansiyonu)
+    {
+      const dcx = VIEW_W - 62, dcy = BAND_TOP + VIEW_H - 78, dr = 44;
+      const ready = g.dashCd <= 0;
+      const dcol = ready ? [120, 230, 150] : [90, 100, 120];
+      ctx.fillStyle = "rgba(10,16,30,0.75)";
+      ctx.beginPath(); ctx.arc(dcx, dcy, dr, 0, 7); ctx.fill();
+      ctx.strokeStyle = rgb(dcol); ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(dcx, dcy, dr, 0, 7); ctx.stroke();
+      if (ready) this.text(this.T("dash_btn"), dcx, dcy, dcol, { size: 18 });
+      else this.text(String(Math.floor(g.dashCd / FPS) + 1), dcx, dcy, dcol, { size: 24 });
+      this.dashBtnRect = { x: dcx - dr, y: dcy - dr, w: dr * 2, h: dr * 2 };
+    }
 
     if (this.ticks - this.msgT < 150 && this.msg) {
-      const tw = this.textWidth(this.msg, 26), th2 = 26;
+      const tw = this.textWidth(this.msg, 20), th2 = 20;
       ctx.fillStyle = "rgba(4,7,15,0.68)";
-      ctx.fillRect(WIN_W / 2 - tw / 2 - 18, BAND_TOP + 110 - th2 / 2 - 7, tw + 36, th2 + 14);
-      this.text(this.msg, WIN_W / 2, BAND_TOP + 110, [255, 190, 120], { size: 26 });
+      ctx.fillRect(WIN_W / 2 - tw / 2 - 14, BAND_TOP + 34 - th2 / 2 - 6, tw + 28, th2 + 12);
+      this.text(this.msg, WIN_W / 2, BAND_TOP + 34, [255, 190, 120], { size: 20 });
     }
 
     if (g.frame < 120 && g.finaleT === 0) {
@@ -1268,89 +1276,83 @@ class App {
     const ctx = this.ctx;
     ctx.fillStyle = BG;
     ctx.fillRect(0, 0, WIN_W, WIN_H);
-    for (let i = 0; i < 40; i++) {
+    for (let i = 0; i < 60; i++) {
       const x = (i * 337) % WIN_W, y = (i * 691) % WIN_H;
       this.circle(x, y, 1 + (i % 2), [200, 214, 255]);
     }
 
-    // sol panel: NASIL OYNANIR rehberi (statik, engelleyici degil)
-    ctx.fillStyle = "rgb(12,18,38)";
-    ctx.fillRect(0, 0, SIDE, WIN_H);
-    ctx.fillStyle = "rgb(70,150,190)";
-    ctx.fillRect(SIDE - 3, 0, 3, WIN_H);
-    this.text(GUIDE_TITLE[this.lang], SIDE / 2, 40, CYAN, { size: 26 });
-    let gy = 76;
-    const maxw = SIDE - 56;
+    const cx = WIN_W / 2;
+    this.drawLangButtons();
+    this.text(this.T("title"), cx, 100, CYAN, { size: 36 });
+    this.text(this.T("slogan"), cx, 148, [185, 205, 225], { size: 17 });
+    this.circle(cx, 278, 92, [236, 192, 52]);
+    this.text(this.T("play"), cx, 278, [60, 44, 8], { size: 38 });
+    this.text(this.T("menu_info").replace("{0}", this.maxChapter).replace("{1}", this.high),
+      cx, 410, [235, 205, 125], { size: 17 });
+    this.text(this.T("menu_keys"), cx, 444, [185, 200, 220], { size: 15 });
+    this.drawLogo(cx, 520, 130);
+
+    // NASIL OYNANIR: tek satirlik ikon+baslik+aciklama listesi (genis tuvalde satir basina sigar)
+    this.text(GUIDE_TITLE[this.lang], cx, 610, CYAN, { size: 22 });
+    ctx.strokeStyle = "rgba(70,150,190,0.5)"; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(40, 628); ctx.lineTo(WIN_W - 40, 628); ctx.stroke();
+    let gy = 656;
     const guide = GUIDE[this.lang];
     for (let i = 0; i < guide.length; i++) {
       const title = guide[i][0], desc = guide[i][1];
-      this.guideIcon(i, 26, gy + 8);
-      this.text(title, 48, gy, YELLOW, { size: 16, center: false });
-      gy += 21;
-      for (const line of this.wrap(desc, maxw, 16)) {
-        this.text(line, 26, gy, [200, 212, 228], { size: 16, center: false });
-        gy += 17;
-      }
-      gy += 8;
+      this.guideIcon(i, 38, gy);
+      this.text(title, 64, gy, YELLOW, { size: 17, center: false });
+      const tw = this.textWidth(title, 17);
+      this.text(desc, 64 + tw + 12, gy, [195, 208, 226], { size: 15, center: false });
+      gy += 45;
     }
-
-    const cx = SIDE + (WIN_W - SIDE) / 2;
-    this.drawLangButtons();
-    this.text(this.T("title"), cx, 130, CYAN, { size: 42 });
-    this.text(this.T("slogan"), cx, 180, [185, 205, 225], { size: 20 });
-    this.circle(cx, 350, 105, [236, 192, 52]);
-    this.text(this.T("play"), cx, 350, [60, 44, 8], { size: 42 });
-    this.text(this.T("menu_info").replace("{0}", this.maxChapter).replace("{1}", this.high),
-      cx, 480, [235, 205, 125], { size: 20 });
-    this.text(this.T("menu_keys"), cx, 540, [185, 200, 220], { size: 20 });
-    this.drawLogo(cx, 655, 230);
   }
 
   drawBreak() {
     const ctx = this.ctx;
     ctx.fillStyle = BG; ctx.fillRect(0, 0, WIN_W, WIN_H);
     const i = this.breakIdx;
-    this.drawLogo(WIN_W / 2, 68, 130);
-    this.text(this.T("chapter") + " " + (i + 1) + " " + this.T("done"), WIN_W / 2, 140, [130, 205, 225], { size: 20 });
-    this.text(CH_DONE[this.lang][i], WIN_W / 2, 200, [255, 220, 90], { size: 26 });
-    for (let k = 0; k < 3; k++) this.star(WIN_W / 2 - 70 + k * 70, 270, 22, YELLOW);
+    this.drawLogo(WIN_W / 2, 290, 130);
+    this.text(this.T("chapter") + " " + (i + 1) + " " + this.T("done"), WIN_W / 2, 380, [130, 205, 225], { size: 20 });
+    this.text(CH_DONE[this.lang][i], WIN_W / 2, 450, [255, 220, 90], { size: 26 });
+    for (let k = 0; k < 3; k++) this.star(WIN_W / 2 - 70 + k * 70, 530, 22, YELLOW);
     const q = CH_QUOTE[this.lang][i].split("|");
-    this.text(q[0], WIN_W / 2, 360, WHITE, { size: 26 });
-    if (q.length > 1) this.text(q[1], WIN_W / 2, 400, WHITE, { size: 26 });
+    this.text(q[0], WIN_W / 2, 640, WHITE, { size: 26 });
+    if (q.length > 1) this.text(q[1], WIN_W / 2, 680, WHITE, { size: 26 });
     const nx = Math.min(i + 1, 9);
-    this.text(this.T("next_ch") + ": " + this.CN(nx), WIN_W / 2, 500, [185, 205, 225], { size: 20 });
-    this.text(this.CR(nx), WIN_W / 2, 534, [232, 202, 125], { size: 20 });
-    this.text(this.T("cont"), WIN_W / 2, 640, GREEN, { size: 26 });
+    this.text(this.T("next_ch") + ": " + this.CN(nx), WIN_W / 2, 800, [185, 205, 225], { size: 20 });
+    this.text(this.CR(nx), WIN_W / 2, 836, [232, 202, 125], { size: 20 });
+    this.text(this.T("cont"), WIN_W / 2, 980, GREEN, { size: 26 });
   }
 
   drawOver() {
     const ctx = this.ctx;
     ctx.fillStyle = BG; ctx.fillRect(0, 0, WIN_W, WIN_H);
-    this.drawLogo(WIN_W / 2, 90, 130);
-    this.text(this.T("over"), WIN_W / 2, 175, [226, 75, 74], { size: 42 });
-    this.text(this.T("reached") + ": " + this.g.wave, WIN_W / 2, 255, CYAN, { size: 26 });
-    this.text(this.T("total") + ": " + this.g.score, WIN_W / 2, 300, YELLOW, { size: 26 });
-    this.text(this.T("record") + ": " + this.high, WIN_W / 2, 345, [185, 200, 215], { size: 20 });
+    this.drawLogo(WIN_W / 2, 327, 130);
+    this.text(this.T("over"), WIN_W / 2, 412, [226, 75, 74], { size: 42 });
+    this.text(this.T("reached") + ": " + this.g.wave, WIN_W / 2, 492, CYAN, { size: 26 });
+    this.text(this.T("total") + ": " + this.g.score, WIN_W / 2, 537, YELLOW, { size: 26 });
+    this.text(this.T("record") + ": " + this.high, WIN_W / 2, 582, [185, 200, 215], { size: 20 });
     this.button(this.overContRect, this.T("over_continue"), GREEN, this.T("over_continue_sub"));
     this.button(this.overRestartRect, this.T("over_restart"), [226, 120, 90]);
-    this.text(this.T("over_keys"), WIN_W / 2, 670, [150, 165, 185], { size: 16 });
+    this.text(this.T("over_keys"), WIN_W / 2, 907, [150, 165, 185], { size: 16 });
   }
 
   drawWon() {
     const ctx = this.ctx;
     ctx.fillStyle = BG; ctx.fillRect(0, 0, WIN_W, WIN_H);
     const t = (this.ticks - this.wonT) / FPS;
-    this.drawLogo(WIN_W / 2, 58, 130);
-    this.text(this.T("won"), WIN_W / 2, 130, [255, 225, 90], { size: 42 });
-    this.text(this.T("won_sub"), WIN_W / 2, 185, [214, 226, 238], { size: 20 });
+    this.drawLogo(WIN_W / 2, 337, 130);
+    this.text(this.T("won"), WIN_W / 2, 409, [255, 225, 90], { size: 42 });
+    this.text(this.T("won_sub"), WIN_W / 2, 464, [214, 226, 238], { size: 20 });
     const q = CH_QUOTE[this.lang][9].split("|");
-    this.text(q[0], WIN_W / 2, 255, WHITE, { size: 26 });
-    this.text(q[1], WIN_W / 2, 295, WHITE, { size: 26 });
-    this.circle(WIN_W / 2, 410, 46, [250, 216, 100]);
-    this.circle(WIN_W / 2, 410, 52, WHITE, 3);
-    this.text(this.T("total") + ": " + this.g.score, WIN_W / 2, 520, YELLOW, { size: 26 });
-    this.text(this.T("credit"), WIN_W / 2, 570, [185, 198, 215], { size: 20 });
-    if (t > 2) this.text(this.T("won_key"), WIN_W / 2, 640, CYAN, { size: 26 });
+    this.text(q[0], WIN_W / 2, 534, WHITE, { size: 26 });
+    this.text(q[1], WIN_W / 2, 574, WHITE, { size: 26 });
+    this.circle(WIN_W / 2, 689, 46, [250, 216, 100]);
+    this.circle(WIN_W / 2, 689, 52, WHITE, 3);
+    this.text(this.T("total") + ": " + this.g.score, WIN_W / 2, 799, YELLOW, { size: 26 });
+    this.text(this.T("credit"), WIN_W / 2, 849, [185, 198, 215], { size: 20 });
+    if (t > 2) this.text(this.T("won_key"), WIN_W / 2, 919, CYAN, { size: 26 });
   }
 
   start(chapter) {
@@ -1388,7 +1390,7 @@ class App {
     if (this.scene === "MENU") {
       if (this._inRect(x, y, this.trRect)) { this.lang = "TR"; this.saveNow(); }
       else if (this._inRect(x, y, this.enRect)) { this.lang = "EN"; this.saveNow(); }
-      else if (x > SIDE) this.start(1);
+      else if (y < 600) this.start(1);   // rehber listesine (asagida) tiklamak baslatmaz
     } else if (this.scene === "BREAK") {
       this.scene = "PLAY";
     } else if (this.scene === "OVER") {
