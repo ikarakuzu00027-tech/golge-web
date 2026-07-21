@@ -447,7 +447,7 @@ class Game {
 
     this.lasers = [];
     if (d > 0.08 && lasCap > 0) {
-      const nL = Math.min(lasCap, Math.max(1, Math.min(9, Math.floor((d - 0.08) * 10))));
+      const nL = Math.min(lasCap, Math.max(1, Math.min(6, Math.floor((d - 0.08) * 7))));
       const pulse = Math.max(38, Math.floor(100 - d * 65));
       for (let i = 0; i < nL * 10 && this.lasers.length < nL; i++) {
         if (rnd.random() < 0.5) {
@@ -693,8 +693,15 @@ class App {
     this._roundRect(rect.x, rect.y, rect.w, rect.h, 12);
     ctx.stroke();
     const cx = rect.x + rect.w / 2, cy = rect.y + rect.h / 2;
-    this.text(label, cx, cy - (sub ? 12 : 0), col, { size: 26 });
-    if (sub) this.text(sub, cx, cy + 16, [170, 185, 205], { size: 16 });
+    if (sub) {
+      const maxw = rect.w - 28;
+      const lines = this.wrap(sub, maxw, 12);
+      this.text(label, cx, rect.y + 23, col, { size: 21 });
+      let sy = rect.y + rect.h - 10 - (lines.length - 1) * 13;
+      for (const line of lines) { this.text(line, cx, sy, [170, 185, 205], { size: 12 }); sy += 13; }
+    } else {
+      this.text(label, cx, cy, col, { size: 26 });
+    }
   }
   _roundRect(x, y, w, h, r) {
     const ctx = this.ctx;
@@ -813,7 +820,7 @@ class App {
         c[2] = true; g.coinsGot += 1; g.starsRun += 1; g.score += 25;
         this.sfx.play("star");
         if (g.finaleT === 0 && g.starsRun >= g.ghostThreshold) {
-          g.ghostCount += 1; g.ghostThreshold += 10;
+          g.ghostCount += 1; g.ghostThreshold += 15;
           g.echoSpawns.push(g.frame + g.echoSpawns.length * g.waveDelay());
           this.note(this.T("new_shadow")); this.sfx.play("shadow");
         }
