@@ -145,6 +145,9 @@ const UI = {
     dash_ready: "SAĞ TIK/ATAK: HAZIR", dash_cd: "ATAK: {0}sn",
     dash_btn: "ATAK",
     pause_menu_btn: "ANA MENÜ",
+    hint1: "BU SENSİN - ok tuşları / fare ile hareket et",
+    hint2: "GÖLGEN 2.5 sn önceki halin - ONA DOKUNMA!",
+    hint3: "Yeşile dönünce GEÇİDE gir - yeni dalga!",
   },
   EN: {
     score: "SCORE", shadow: "SHADOW", ball: "BALL", chapter: "CHAPTER", wave: "WAVE",
@@ -170,6 +173,9 @@ const UI = {
     dash_ready: "RIGHT-CLICK/DASH: READY", dash_cd: "DASH: {0}s",
     dash_btn: "DASH",
     pause_menu_btn: "MAIN MENU",
+    hint1: "THIS IS YOU - move with arrows / mouse",
+    hint2: "YOUR SHADOW is you 2.5s ago - DON'T TOUCH IT!",
+    hint3: "Enter the GATE when it turns green - new wave!",
   },
 };
 
@@ -532,7 +538,7 @@ class App {
     this.canvas = canvas;
     this.ctx = canvas.getContext("2d");
     this.sfx = new Sfx();
-    this.lang = "TR";
+    this.lang = "EN";
     this.scene = "MENU";
     this.g = null;
     this.paused = false;
@@ -545,6 +551,7 @@ class App {
     this.keys = {};
     this.mouse = { x: 0, y: 0, down: false };
     this.logo = null;
+    this.introSeen = false;
     this._loadLogo();
     this._loadSave();
 
@@ -584,7 +591,7 @@ class App {
   CR(i) { return CH_RULE[this.lang][i]; }
   note(m) { this.msg = m; this.msgT = this.ticks; }
 
-  // ---- kayit (bölüm progresi + rekor + dil): YouTube save varsa onu, yoksa localStorage ----
+  // ---- kayit (bölüm progresi + rekor + dil + ilk-oynanış ipucu bayrağı): YouTube save varsa onu, yoksa localStorage ----
   _loadSave() {
     try {
       const raw = localStorage.getItem("golge_save");
@@ -592,12 +599,13 @@ class App {
         const d = JSON.parse(raw);
         this.maxChapter = d.maxChapter || 1;
         this.high = d.high || 0;
-        this.lang = d.lang || "TR";
+        this.lang = d.lang || "EN";
+        this.introSeen = !!d.introSeen;
       }
     } catch (e) {}
   }
   saveNow() {
-    const data = { maxChapter: this.maxChapter, high: this.high, lang: this.lang };
+    const data = { maxChapter: this.maxChapter, high: this.high, lang: this.lang, introSeen: this.introSeen };
     if (window.ytInPlayables) {
       // Playables icinde: SADECE resmi bulut kaydi kullanilir (kendi yerel mekanizmamiz devre disi)
       if (window.ytSaveData) window.ytSaveData(data);
@@ -750,6 +758,12 @@ class App {
         if (g.frame === 480) g.powerups.push([400, 470, 3, 20 * FPS]);
       }
       if (g.wave === 4 && g.frame === 240) g.powerups.push([600, 520, 2, 20 * FPS]);
+    }
+
+    if (this.showIntroHints && g.wave === 1) {
+      if (g.frame === 20) this.note(this.T("hint1"));
+      if (g.frame === g.waveDelay() + 10) this.note(this.T("hint2"));
+      if (g.frame === g.waveDelay() + 200) { this.note(this.T("hint3")); this.showIntroHints = false; }
     }
 
     if (g.finaleT > 0) {
@@ -1389,7 +1403,11 @@ class App {
   start(chapter) {
     this.sfx.resume();
     this.sfx.play("click");
-    this.g = new Game(chapter || 1);
+    chapter = chapter || 1;
+    // ilk oyunda, sadece 1. bölümden başlarken: dünyayı durdurmayan, kendiliğinden kaybolan kısa ipuçları
+    this.showIntroHints = (chapter === 1 && !this.introSeen);
+    if (this.showIntroHints) { this.introSeen = true; this.saveNow(); }
+    this.g = new Game(chapter);
     this.paused = false;
     this.scene = "PLAY";
   }
