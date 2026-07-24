@@ -145,7 +145,7 @@ const UI = {
     dash_ready: "SAĞ TIK/ATAK: HAZIR", dash_cd: "ATAK: {0}sn",
     dash_btn: "ATAK",
     pause_menu_btn: "ANA MENÜ",
-    demo_title: "NASIL OYNANIR", demo_skip: "GEÇ »",
+    demo_title: "NASIL OYNANIR", demo_skip: "GEÇ »", watch_again: "▶ TEKRAR İZLE",
     demo1: "BU SENSİN - bu topu sen kontrol edersin",
     demo2: "Gölgen seni takip eder - 2.5 saniye önceki halin",
     demo3: "SANA DOKUNURSA can kaybedersin!",
@@ -180,7 +180,7 @@ const UI = {
     dash_ready: "RIGHT-CLICK/DASH: READY", dash_cd: "DASH: {0}s",
     dash_btn: "DASH",
     pause_menu_btn: "MAIN MENU",
-    demo_title: "HOW TO PLAY", demo_skip: "SKIP »",
+    demo_title: "HOW TO PLAY", demo_skip: "SKIP »", watch_again: "▶ WATCH AGAIN",
     demo1: "THIS IS YOU - you control this ball",
     demo2: "Your shadow follows you - it's you, 2.5 seconds ago",
     demo3: "IF IT TOUCHES YOU, you lose a heart!",
@@ -1347,9 +1347,17 @@ class App {
 
     // NASIL OYNANIR: tek satirlik ikon+baslik+aciklama listesi (genis tuvalde satir basina sigar)
     this.text(GUIDE_TITLE[this.lang], cx, 610, CYAN, { size: 22 });
+    this.watchAgainRect = { x: cx - 90, y: 630, w: 180, h: 38 };
+    ctx.fillStyle = "rgba(70,150,190,0.15)";
+    this._roundRect(this.watchAgainRect.x, this.watchAgainRect.y, this.watchAgainRect.w, this.watchAgainRect.h, 10);
+    ctx.fill();
+    ctx.strokeStyle = "rgba(120,200,235,0.7)"; ctx.lineWidth = 2;
+    this._roundRect(this.watchAgainRect.x, this.watchAgainRect.y, this.watchAgainRect.w, this.watchAgainRect.h, 10);
+    ctx.stroke();
+    this.text(this.T("watch_again"), cx, this.watchAgainRect.y + this.watchAgainRect.h / 2, [150, 220, 245], { size: 16 });
     ctx.strokeStyle = "rgba(70,150,190,0.5)"; ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.moveTo(40, 628); ctx.lineTo(WIN_W - 40, 628); ctx.stroke();
-    let gy = 656;
+    ctx.beginPath(); ctx.moveTo(40, 686); ctx.lineTo(WIN_W - 40, 686); ctx.stroke();
+    let gy = 714;
     const guide = GUIDE[this.lang];
     for (let i = 0; i < guide.length; i++) {
       const title = guide[i][0], desc = guide[i][1];
@@ -1555,14 +1563,17 @@ class App {
       this.text(this.T("dash_btn"), dcx, dcy, [120, 230, 150], { size: 18 });
     }
 
-    // ust: baslik + aciklama + GEC dugmesi (gercek can/skor gostermiyoruz - kafa karismasin)
-    ctx.fillStyle = "rgb(6,8,16)"; ctx.fillRect(0, 0, WIN_W, BAND_TOP);
-    ctx.fillStyle = "rgb(70,150,190)"; ctx.fillRect(0, BAND_TOP - 3, WIN_W, 3);
-    this.text(this.T("demo_title"), WIN_W / 2, 24, CYAN, { size: 18 });
-    this.text(this.demoCaption(), WIN_W / 2, 60, [235, 205, 125], { size: 17 });
+    // ust: buyuk, okunakli aciklama paneli + GEC dugmesi (gercek can/skor gostermiyoruz - kafa karismasin)
+    const capH = 210;
+    ctx.fillStyle = "rgba(6,8,16,0.94)"; ctx.fillRect(0, 0, WIN_W, capH);
+    ctx.fillStyle = "rgb(70,150,190)"; ctx.fillRect(0, capH - 3, WIN_W, 3);
+    this.text(this.T("demo_title"), WIN_W / 2, 26, CYAN, { size: 20 });
+    const lines = this.wrap(this.demoCaption(), WIN_W - 60, 30);
+    let cy = lines.length > 1 ? 84 : 110;
+    for (const line of lines) { this.text(line, WIN_W / 2, cy, [255, 220, 140], { size: 30 }); cy += 40; }
     this.text(this.T("demo_skip"), this.demoSkipRect.x + this.demoSkipRect.w / 2,
-      this.demoSkipRect.y + this.demoSkipRect.h / 2, [200, 210, 225], { size: 15 });
-    ctx.strokeStyle = "rgba(150,165,190,0.6)"; ctx.lineWidth = 2;
+      this.demoSkipRect.y + this.demoSkipRect.h / 2, [210, 220, 235], { size: 16 });
+    ctx.strokeStyle = "rgba(150,165,190,0.7)"; ctx.lineWidth = 2;
     this._roundRect(this.demoSkipRect.x, this.demoSkipRect.y, this.demoSkipRect.w, this.demoSkipRect.h, 10);
     ctx.stroke();
 
@@ -1599,6 +1610,7 @@ class App {
     if (this.scene === "MENU") {
       if (this._inRect(x, y, this.trRect)) { this.lang = "TR"; this.saveNow(); }
       else if (this._inRect(x, y, this.enRect)) { this.lang = "EN"; this.saveNow(); }
+      else if (this.watchAgainRect && this._inRect(x, y, this.watchAgainRect)) this.startDemo();
       else if (y < 600) this.playPressed();   // rehber listesine (asagida) tiklamak baslatmaz
     } else if (this.scene === "BREAK") {
       this.scene = "PLAY";
