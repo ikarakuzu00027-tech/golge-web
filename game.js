@@ -1548,7 +1548,14 @@ class App {
     const d = this.demo;
     if (d.finished) return;
     const beat = this.demoActiveBeat();
-    const [bx, by] = this.demoTargetPos(d, beat);
+    let [bx, by] = this.demoTargetPos(d, beat);
+    // HIZLANMA: alindiktan sonra gercekten hizli bir kacis hareketi goster (durup kalmasin)
+    const speedWin = d.speedPU.got && beat.key === "demo_b8" && d.frame < d.speedPU.gotFrame + 130;
+    if (speedWin) {
+      const tt = d.frame - d.speedPU.gotFrame;
+      bx = d.speedPU.x + 55 * Math.sin(tt * 0.35);
+      by = d.speedPU.y + 40 * Math.cos(tt * 0.5);
+    }
     d.bx = bx; d.by = by;
     d.hist.push([bx, by]);
     d.trail.push([bx, by]);
@@ -1556,7 +1563,9 @@ class App {
     if (d.hitFlash > 0) d.hitFlash--;
     if (d.dashFlash > 0) d.dashFlash--;
     if (d.teleFlash > 0) d.teleFlash--;
-    d.sat.spin += 0.012;
+    // DONMA: dunya donarken uydu da donmeyi keser (gercekten "her sey durdu" hissi)
+    const frozenWin = d.freezePU.got && beat.key === "demo_b7" && d.frame < d.freezePU.gotFrame + 110;
+    if (!frozenWin) d.sat.spin += 0.012;
 
     const fire = (name, fn) => { if (!d.fired[name]) { d.fired[name] = true; fn(); } };
     const near = (ox, oy, r) => dist(bx, by, ox, oy) < r;
@@ -1574,10 +1583,17 @@ class App {
     if (beat.key === "demo_b8" && !d.speedPU.got && near(d.speedPU.x, d.speedPU.y, BALL_R + 40))
       { this.sfx.play("boost"); d.speedPU.got = true; d.speedPU.gotFrame = d.frame; }
     if (beat.key === "demo_b9" && d.frame === beat.arrive) { this.sfx.play("dash"); d.dashFlash = 30; }
-    if (beat.key === "demo_bhole" && !d.holeUsed && near(d.hole.x, d.hole.y, 42))
-      { this.sfx.play("swallow"); d.holeUsed = true; d.teleFlash = 20; }
-    if (beat.key === "demo_bportal" && !d.portalUsed && near(d.portalA.x, d.portalA.y, 34))
-      { this.sfx.play("portal"); d.portalUsed = true; d.teleFlash = 16; }
+    // KARADELİK: yutulunca farkli bir noktada belirir (gercek oyundaki gibi golgenin yanina degil,
+    // ama en azindan ISINLANMA gercek: hedef degisir, top ANINDA baska yerde cikar)
+    if (beat.key === "demo_bhole" && !d.holeUsed && near(d.hole.x, d.hole.y, 42)) {
+      this.sfx.play("swallow"); d.holeUsed = true; d.teleFlash = 20;
+      beat.target = [600, 550]; d.trail = [];
+    }
+    // PORTAL: birine girince aninda digerinden cikar
+    if (beat.key === "demo_bportal" && !d.portalUsed && near(d.portalA.x, d.portalA.y, 34)) {
+      this.sfx.play("portal"); d.portalUsed = true; d.teleFlash = 16;
+      beat.target = [d.portalB.x, d.portalB.y]; d.trail = [];
+    }
     if (beat.key === "demo_b10" && !d.star.got && near(d.star.x, d.star.y, BALL_R + 22))
       { this.sfx.play("star"); d.star.got = true; }
     if (beat.key === "demo_b12" && d.frame >= beat.arrive && !d.gate.entered)
@@ -1717,6 +1733,7 @@ class App {
       this.circle(mx(d.bx), dmy(d.by), ms(BALL_R), ballCol);
       this.circle(mx(d.bx), dmy(d.by), ms(BALL_R) + 3, WHITE, 2);
       if (shieldActive) this.circle(mx(d.bx), dmy(d.by), ms(BALL_R) + 8, SHIELDC, 3);
+      if (freezeActive) this.circle(mx(d.bx), dmy(d.by), ms(BALL_R) + 10 + 3 * Math.sin(d.frame / 4), FREEZEC, 2);
     }
 
     // ATAK dugmesi (gercek oyunla ayni konum) + tanitim aninda parlama
