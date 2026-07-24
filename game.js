@@ -24,7 +24,7 @@ function my(y) { return BAND_TOP + y * SY; }
 function ms(r) { return r * SX * 1.15; }
 
 // NASIL OYNANIR gösterimi: kendi ayrı üst bandı var (gerçek HUD bandıyla karışmaz, arenanın ÜSTÜNE binmez)
-const DEMO_TOP = 230;
+const DEMO_TOP = 280;
 const DEMO_ARENA_H = WIN_H - DEMO_TOP - BAND_BOT;
 const DEMO_SY = DEMO_ARENA_H / H;
 function dmy(y) { return DEMO_TOP + y * DEMO_SY; }
@@ -1362,6 +1362,7 @@ class App {
     this.drawLogo(cx, 520, 130);
 
     // NASIL OYNANIR: tek satirlik ikon+baslik+aciklama listesi (genis tuvalde satir basina sigar)
+    this.guideHeaderRect = { x: 0, y: 592, w: WIN_W, h: 32 };   // basliga tiklamak da tanitimi acar
     this.text(GUIDE_TITLE[this.lang], cx, 610, CYAN, { size: 22 });
     this.watchAgainRect = { x: cx - 90, y: 630, w: 180, h: 38 };
     ctx.fillStyle = "rgba(70,150,190,0.15)";
@@ -1504,7 +1505,14 @@ class App {
   stepDemo() {
     const d = this.demo;
     if (d.finished) return;
-    const [bx, by] = this.demoPos(d.frame);
+    let [bx, by] = this.demoPos(d.frame);
+    // gecit bolumunde: top rotasindan ayrilip yumusakca gecide dogru kayar ve tam zamaninda ona ulasir
+    if (d.frame >= d.gateChargeStart) {
+      const prog = Math.min(1, (d.frame - d.gateChargeStart) / (d.gateEnterFrame - d.gateChargeStart));
+      const ease = prog * prog * (3 - 2 * prog);
+      bx = bx * (1 - ease) + d.gate.x * ease;
+      by = by * (1 - ease) + d.gate.y * ease;
+    }
     d.bx = bx; d.by = by;
     d.hist.push([bx, by]);
     if (d.hitFlash > 0) d.hitFlash--;
@@ -1646,11 +1654,13 @@ class App {
     const capH = DEMO_TOP;
     ctx.fillStyle = "rgb(6,8,16)"; ctx.fillRect(0, 0, WIN_W, capH);
     ctx.fillStyle = "rgb(70,150,190)"; ctx.fillRect(0, capH - 3, WIN_W, 3);
-    this.text(this.T("demo_title"), WIN_W / 2, 24, CYAN, { size: 19 });
+    this.text(this.T("demo_title"), WIN_W / 2, 28, CYAN, { size: 20 });
+    ctx.strokeStyle = "rgba(70,150,190,0.35)"; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(40, 50); ctx.lineTo(WIN_W - 40, 50); ctx.stroke();
     const beat = this.demoActiveBeat();
-    const lines = this.wrap(this.T(beat.key), WIN_W - 60, 28);
-    let cy = lines.length > 1 ? 92 : 120;
-    for (const line of lines) { this.text(line, WIN_W / 2, cy, [255, 220, 140], { size: 28 }); cy += 38; }
+    const lines = this.wrap(this.T(beat.key), WIN_W - 60, 32);
+    let cy = lines.length > 1 ? 136 : 158;
+    for (const line of lines) { this.text(line, WIN_W / 2, cy, [255, 220, 140], { size: 32 }); cy += 46; }
     // ilerleme cubugu: ne kadar kaldigini gosterir
     const pw = WIN_W - 80;
     ctx.fillStyle = "rgba(255,255,255,0.12)"; ctx.fillRect(40, capH - 16, pw, 5);
@@ -1704,6 +1714,7 @@ class App {
       if (this._inRect(x, y, this.trRect)) { this.lang = "TR"; this.saveNow(); }
       else if (this._inRect(x, y, this.enRect)) { this.lang = "EN"; this.saveNow(); }
       else if (this.watchAgainRect && this._inRect(x, y, this.watchAgainRect)) this.startDemo();
+      else if (this.guideHeaderRect && this._inRect(x, y, this.guideHeaderRect)) this.startDemo();
       else if (y < 600) this.playPressed();   // rehber listesine (asagida) tiklamak baslatmaz
     } else if (this.scene === "BREAK") {
       this.scene = "PLAY";
