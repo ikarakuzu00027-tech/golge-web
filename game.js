@@ -22,6 +22,12 @@ const SX = VIEW_W / W, SY = VIEW_H / H;
 function mx(x) { return ARENA_X + x * SX; }
 function my(y) { return BAND_TOP + y * SY; }
 function ms(r) { return r * SX * 1.15; }
+
+// NASIL OYNANIR gösterimi: kendi ayrı üst bandı var (gerçek HUD bandıyla karışmaz, arenanın ÜSTÜNE binmez)
+const DEMO_TOP = 230;
+const DEMO_ARENA_H = WIN_H - DEMO_TOP - BAND_BOT;
+const DEMO_SY = DEMO_ARENA_H / H;
+function dmy(y) { return DEMO_TOP + y * DEMO_SY; }
 function dist(ax, ay, bx, by) { return Math.hypot(ax - bx, ay - by); }
 function segDist(px, py, x1, y1, x2, y2) {
   const dx = x2 - x1, dy = y2 - y1;
@@ -146,15 +152,20 @@ const UI = {
     dash_btn: "ATAK",
     pause_menu_btn: "ANA MENÜ",
     demo_title: "NASIL OYNANIR", demo_skip: "GEÇ »", watch_again: "▶ TEKRAR İZLE",
-    demo1: "BU SENSİN - bu topu sen kontrol edersin",
-    demo2: "Gölgen seni takip eder - 2.5 saniye önceki halin",
-    demo3: "SANA DOKUNURSA can kaybedersin!",
-    demo4: "Engellerden ve tehlikelerden kaçın",
-    demo5: "Gölge yaklaşırsa ATAK'a dokunup kaç!",
-    demo6: "Yıldızlar puan verir - ama her 10'da bir YENİ GÖLGE katılır!",
-    demo7: "Güçlendirmeler hayatta kalmana yardım eder",
-    demo8: "Parlayan GEÇİDE ulaş - yeni dalga başlar!",
-    demo9: "Hazır mısın? Haydi başlayalım!",
+    demo_replay: "▶ TEKRAR İZLE", demo_start: "OYUNA BAŞLA",
+    demo_b1: "BU SENSİN - bu topu sen kontrol edersin",
+    demo_b2: "Gölgen seni takip eder - 2.5 saniye önceki halin",
+    demo_b3: "SANA DOKUNURSA can kaybedersin!",
+    demo_b4: "FÜZELER aşağıdan yükselir - çarpma!",
+    demo_b5: "Dönen UYDULAR da tehlikelidir - onlardan da kaç",
+    demo_b6: "KALKAN: bir vuruşu emer, seni korur",
+    demo_b7: "DONMA: dünyayı birkaç saniye durdurur",
+    demo_b8: "HIZLANMA: bir süre çok hızlı kaçarsın",
+    demo_b9: "Gölge yaklaşırsa ATAK'a dokunup kaç!",
+    demo_b10: "Yıldızlar puan verir ve GEÇİDİ ERKEN AÇAR",
+    demo_b11: "...ama her 10 yıldızda bir YENİ GÖLGE katılır!",
+    demo_b12: "Parlayan GEÇİDE ulaş - yeni dalga başlar!",
+    demo_b13: "Hazır mısın? Haydi başlayalım!",
   },
   EN: {
     score: "SCORE", shadow: "SHADOW", ball: "BALL", chapter: "CHAPTER", wave: "WAVE",
@@ -181,15 +192,20 @@ const UI = {
     dash_btn: "DASH",
     pause_menu_btn: "MAIN MENU",
     demo_title: "HOW TO PLAY", demo_skip: "SKIP »", watch_again: "▶ WATCH AGAIN",
-    demo1: "THIS IS YOU - you control this ball",
-    demo2: "Your shadow follows you - it's you, 2.5 seconds ago",
-    demo3: "IF IT TOUCHES YOU, you lose a heart!",
-    demo4: "Avoid obstacles and hazards too",
-    demo5: "Getting chased? Tap ATAK to dash to safety!",
-    demo6: "Stars give points... but every 10 adds a NEW shadow!",
-    demo7: "Power-ups help you survive",
-    demo8: "Reach the glowing GATE to start a new wave!",
-    demo9: "Ready? Let's go!",
+    demo_replay: "▶ WATCH AGAIN", demo_start: "START GAME",
+    demo_b1: "THIS IS YOU - you control this ball",
+    demo_b2: "Your shadow follows you - it's you, 2.5 seconds ago",
+    demo_b3: "IF IT TOUCHES YOU, you lose a heart!",
+    demo_b4: "ROCKETS rise from below - don't get hit!",
+    demo_b5: "Spinning SATELLITES are dangerous too - avoid them",
+    demo_b6: "SHIELD: absorbs one hit and protects you",
+    demo_b7: "FREEZE: stops the world for a few seconds",
+    demo_b8: "SPEED: makes you much faster for a while",
+    demo_b9: "Getting chased? Tap ATAK to dash to safety!",
+    demo_b10: "Stars give points and open the GATE faster",
+    demo_b11: "...but every 10 stars adds a NEW shadow!",
+    demo_b12: "Reach the glowing GATE to start a new wave!",
+    demo_b13: "Ready? Let's go!",
   },
 };
 
@@ -1431,18 +1447,45 @@ class App {
     else this.start(1);
   }
 
-  // ============ NASIL OYNANIR: otomatik oynanan ~12sn'lik tanıtım (gerçek istatistik/ilerleme yok) ============
+  // ============ NASIL OYNANIR: otomatik oynanan, yavaş akan tam tanıtım (gerçek istatistik/ilerleme yok) ============
+  // Sure sabit degil - asagidaki "beat" listesinin toplam uzunlugu neyse o kadar surer.
+  static DEMO_BEATS = [
+    ["demo_b1", 150],   // bu sensin
+    ["demo_b2", 260],   // golgen 2.5sn once
+    ["demo_b3", 190],   // dokunursan can kaybedersin (sahnelenmis vurus)
+    ["demo_b4", 210],   // fuzeler
+    ["demo_b5", 210],   // donen uydular
+    ["demo_b6", 210],   // kalkan
+    ["demo_b7", 210],   // donma
+    ["demo_b8", 210],   // hizlanma
+    ["demo_b9", 210],   // atak/dash
+    ["demo_b10", 160],  // yildiz -> gecit erken acilir
+    ["demo_b11", 160],  // yildiz -> yeni golge
+    ["demo_b12", 260],  // gecit: dolar, acilir, girilir
+    ["demo_b13", 130],  // hazir misin
+  ];
+
   startDemo() {
     this.scene = "DEMO";
     this.demoSkipRect = { x: WIN_W - 110, y: 12, w: 98, h: 40 };
+    let t = 0;
+    const beats = App.DEMO_BEATS.map(([key, len]) => { const b = { key, start: t, end: t + len }; t += len; return b; });
+    const at = (key, offset) => beats.find(b => b.key === key).start + (offset || 0);
     this.demo = {
-      frame: 0, len: 720,
+      frame: 0, total: t, beats, finished: false,
       hist: [], echoSpawns: [150],
-      obstacle: { x: 600, y: 850, r: 24 },
-      star: { x: 250, y: 750, got: false },
-      power: { x: 550, y: 400, got: false },
-      gate: { x: 400, y: 550, entered: false },
-      hitFlash: 0, dashFlash: 0, shieldOn: false, dashDone: false,
+      rocket: { x: 620, y: 0 },
+      sat: { x: 190, y: 950, r: 26, spin: 0 },
+      star: { x: 250, y: 300, got: false, gotFrame: at("demo_b10", 60) },
+      shieldPU: { x: 560, y: 260, got: false, gotFrame: at("demo_b6", 80) },
+      freezePU: { x: 180, y: 1080, got: false, gotFrame: at("demo_b7", 80) },
+      speedPU: { x: 600, y: 1150, got: false, gotFrame: at("demo_b8", 80) },
+      gate: { x: 400, y: 640, entered: false },
+      hitFrame: at("demo_b3", 90),
+      dashFrame: at("demo_b9", 90),
+      rocketStart: at("demo_b4"), rocketEnd: beats.find(b => b.key === "demo_b4").end,
+      gateChargeStart: at("demo_b12"), gateEnterFrame: at("demo_b12", 190),
+      hitFlash: 0, dashFlash: 0,
       fired: {},
     };
   }
@@ -1453,88 +1496,124 @@ class App {
     this.start(1);
   }
 
+  // Yavas, sakip takip edilebilir genis bir gezinme yolu (uzun tanitim boyunca tekrarlanir)
   demoPos(t) {
-    return [400 + 220 * Math.sin(t * 0.018), 550 + 260 * Math.cos(t * 0.013)];
+    return [400 + 210 * Math.sin(t * 0.007), 620 + 320 * Math.cos(t * 0.005)];
   }
 
   stepDemo() {
     const d = this.demo;
+    if (d.finished) return;
     const [bx, by] = this.demoPos(d.frame);
     d.bx = bx; d.by = by;
     d.hist.push([bx, by]);
     if (d.hitFlash > 0) d.hitFlash--;
     if (d.dashFlash > 0) d.dashFlash--;
+    d.sat.spin += 0.012;
 
-    const fireOnce = (name, frame, fn) => {
-      if (d.frame === frame && !d.fired[name]) { d.fired[name] = true; fn(); }
-    };
-    fireOnce("hit", 230, () => { this.sfx.play("hit"); d.hitFlash = 20; });
-    fireOnce("dash", 410, () => { this.sfx.play("dash"); d.dashFlash = 26; d.dashDone = true; });
-    fireOnce("star", 480, () => { this.sfx.play("star"); d.star.got = true; });
-    fireOnce("power", 560, () => { this.sfx.play("power"); d.power.got = true; d.shieldOn = true; });
-    fireOnce("gate", 670, () => { this.sfx.play("gate"); this.sfx.play("wave"); d.gate.entered = true; });
+    if (d.frame === d.hitFrame) { this.sfx.play("hit"); d.hitFlash = 24; }
+    if (d.frame === d.dashFrame) { this.sfx.play("dash"); d.dashFlash = 30; }
+    if (d.frame === d.star.gotFrame) { this.sfx.play("star"); d.star.got = true; }
+    if (d.frame === d.shieldPU.gotFrame) { this.sfx.play("power"); d.shieldPU.got = true; }
+    if (d.frame === d.freezePU.gotFrame) { this.sfx.play("freeze"); d.freezePU.got = true; }
+    if (d.frame === d.speedPU.gotFrame) { this.sfx.play("boost"); d.speedPU.got = true; }
+    if (d.frame === d.gateEnterFrame) { this.sfx.play("gate"); this.sfx.play("wave"); d.gate.entered = true; }
 
     d.frame++;
-    if (d.frame >= d.len) this.endDemo();
+    if (d.frame >= d.total) { d.finished = true; this.introSeen = true; this.saveNow(); }
   }
 
-  demoCaption() {
+  demoActiveBeat() {
     const f = this.demo.frame;
-    if (f < 90) return this.T("demo1");
-    if (f < 220) return this.T("demo2");
-    if (f < 300) return this.T("demo3");
-    if (f < 380) return this.T("demo4");
-    if (f < 460) return this.T("demo5");
-    if (f < 540) return this.T("demo6");
-    if (f < 610) return this.T("demo7");
-    if (f < 690) return this.T("demo8");
-    return this.T("demo9");
+    return this.demo.beats.find(b => f >= b.start && f < b.end) || this.demo.beats[this.demo.beats.length - 1];
   }
 
   drawDemo() {
     const ctx = this.ctx;
     const d = this.demo;
+
     ctx.fillStyle = "rgb(6,8,16)"; ctx.fillRect(0, 0, WIN_W, WIN_H);
-    // arena (gercek oyunla ayni gradyan hissi, sade)
     const top = [46, 58, 106], bot = ARENA_B;
     for (let b = 0; b < 14; b++) {
       const f = b / 13;
-      this.ctx.fillStyle = rgb(lerp3(top, bot, f));
-      ctx.fillRect(0, BAND_TOP + b * VIEW_H / 14, VIEW_W, VIEW_H / 14 + 1);
+      ctx.fillStyle = rgb(lerp3(top, bot, f));
+      ctx.fillRect(0, DEMO_TOP + b * DEMO_ARENA_H / 14, VIEW_W, DEMO_ARENA_H / 14 + 1);
     }
 
-    // gecit
-    const gcol = GREEN;
-    this.glow(mx(d.gate.x), my(d.gate.y), ms(TARGET_R) * 1.7, gcol, 38);
-    this.circle(mx(d.gate.x), my(d.gate.y), ms(TARGET_R), gcol, 4);
-    if (d.gate.entered) this.circle(mx(d.gate.x), my(d.gate.y), ms(TARGET_R) * 0.4, [200, 255, 220]);
+    const shieldActive = d.shieldPU.got && d.frame < d.beats.find(b => b.key === "demo_b6").end;
+    const freezeActive = d.freezePU.got && d.frame < d.freezePU.gotFrame + 110;
+    const speedActive = d.speedPU.got && d.frame < d.speedPU.gotFrame + 140;
 
-    // engel
-    this.orb(mx(d.obstacle.x), my(d.obstacle.y), ms(d.obstacle.r), GRAYOB);
-    this.circle(mx(d.obstacle.x), my(d.obstacle.y), ms(d.obstacle.r) + 2, [130, 200, 240], 2);
+    // gecit: b12'de dolar, acilir, girilir - oncesinde kapali/gri durur
+    {
+      const gb = d.beats.find(b => b.key === "demo_b12");
+      const chargeProg = Math.max(0, Math.min(1, (d.frame - gb.start) / 130));
+      const open = d.frame >= d.gateEnterFrame - 15;
+      const gcol = open ? GREEN : [75 + (GREEN[0] - 75) * chargeProg, 75 + (GREEN[1] - 75) * chargeProg, 75 + (GREEN[2] - 75) * chargeProg];
+      if (open) this.glow(mx(d.gate.x), dmy(d.gate.y), ms(TARGET_R) * 1.7, GREEN, 38);
+      this.circle(mx(d.gate.x), dmy(d.gate.y), ms(TARGET_R), gcol, open ? 4 : 3);
+      if (!open && d.frame >= gb.start) {
+        ctx.beginPath();
+        ctx.arc(mx(d.gate.x), dmy(d.gate.y), ms(TARGET_R) * 1.15, -Math.PI / 2, -Math.PI / 2 + chargeProg * 6.2832);
+        ctx.strokeStyle = rgb(GREEN); ctx.lineWidth = 3; ctx.stroke();
+      }
+      if (d.gate.entered) this.circle(mx(d.gate.x), dmy(d.gate.y), ms(TARGET_R) * 0.4, [200, 255, 220]);
+    }
+
+    // uydu (donen panelli engel) - b5'ten itibaren gorunur, sonrasinda da arka planda kalir
+    if (d.frame >= d.beats.find(b => b.key === "demo_b5").start) {
+      const ox = mx(d.sat.x), oy = dmy(d.sat.y), orr = ms(d.sat.r);
+      this.orb(ox, oy, orr, GRAYOB);
+      this.circle(ox, oy, orr + 2, [130, 200, 240], 2);
+      const dxs = Math.cos(d.sat.spin), dys = Math.sin(d.sat.spin), off = orr * 1.5;
+      for (const sgn of [-1, 1]) {
+        this.line(ox + dxs * (off - orr * 0.55) * sgn, oy + dys * (off - orr * 0.55) * sgn,
+                  ox + dxs * (off + orr * 0.55) * sgn, oy + dys * (off + orr * 0.55) * sgn, PANEL, 7);
+      }
+    }
+
+    // fuze - sadece kendi bolumunde asagidan yukari yukselir
+    if (d.frame >= d.rocketStart && d.frame <= d.rocketEnd) {
+      const prog = (d.frame - d.rocketStart) / (d.rocketEnd - d.rocketStart);
+      const ry = H + 60 - prog * (H + 140);
+      const rx = mx(d.rocket.x + Math.sin(d.frame * 0.1) * 12), ryS = dmy(ry);
+      this.circle(rx, ryS + ms(26), ms(9), [255, 170, 60]);
+      for (const sgn of [-1, 1]) this.line(rx + sgn * ms(8), ryS + ms(8), rx + sgn * ms(15), ryS + ms(24), [200, 70, 60], 4);
+      ctx.fillStyle = "rgb(210,214,224)";
+      this._roundRect(rx - ms(7), ryS - ms(12), ms(14), ms(26), ms(6)); ctx.fill();
+      this.circle(rx, ryS - ms(16), ms(8), [220, 80, 70]);
+    }
 
     // yildiz
-    if (!d.star.got) {
-      this.glow(mx(d.star.x), my(d.star.y), ms(34), YELLOW, 36);
-      this.star(mx(d.star.x), my(d.star.y), ms(24), YELLOW);
+    if (!d.star.got) { this.glow(mx(d.star.x), dmy(d.star.y), ms(34), YELLOW, 36); this.star(mx(d.star.x), dmy(d.star.y), ms(24), YELLOW); }
+    // kalkan
+    if (!d.shieldPU.got) {
+      this.glow(mx(d.shieldPU.x), dmy(d.shieldPU.y), ms(28), SHIELDC, 42);
+      this.circle(mx(d.shieldPU.x), dmy(d.shieldPU.y), ms(13), SHIELDC); this.circle(mx(d.shieldPU.x), dmy(d.shieldPU.y), ms(17), SHIELDC, 2);
     }
-    // guclendirme (kalkan)
-    if (!d.power.got) {
-      this.glow(mx(d.power.x), my(d.power.y), ms(28), SHIELDC, 42);
-      this.circle(mx(d.power.x), my(d.power.y), ms(13), SHIELDC);
-      this.circle(mx(d.power.x), my(d.power.y), ms(17), SHIELDC, 2);
+    // donma
+    if (!d.freezePU.got) {
+      this.glow(mx(d.freezePU.x), dmy(d.freezePU.y), ms(28), FREEZEC, 42);
+      this.circle(mx(d.freezePU.x), dmy(d.freezePU.y), ms(13), FREEZEC); this.circle(mx(d.freezePU.x), dmy(d.freezePU.y), ms(17), FREEZEC, 2);
+    }
+    // hizlanma
+    if (!d.speedPU.got) {
+      this.glow(mx(d.speedPU.x), dmy(d.speedPU.y), ms(28), BOLTC, 42);
+      this.circle(mx(d.speedPU.x), dmy(d.speedPU.y), ms(13), BOLTC); this.circle(mx(d.speedPU.x), dmy(d.speedPU.y), ms(17), BOLTC, 2);
     }
 
-    // golgenin izi + golge (gercek oyunla ayni gorsel dil)
+    if (freezeActive) { ctx.fillStyle = "rgba(120,200,235,0.14)"; ctx.fillRect(0, DEMO_TOP, VIEW_W, DEMO_ARENA_H); }
+
+    // golgenin izi + golge
     for (const spawn of d.echoSpawns) {
       const idx = d.frame - spawn;
       if (idx >= 0 && idx < d.hist.length) {
         const ex = d.hist[idx][0], ey = d.hist[idx][1];
         const grace = idx < 45;
         const er = ms(ECHO_R) * (grace ? 0.75 : 1);
-        if (!grace) this.glow(mx(ex), my(ey), er * 2.3, ORANGE, 26);
-        this.circle(mx(ex), my(ey), er, [12, 12, 16]);
-        this.circle(mx(ex), my(ey), er + 3, ORANGE, grace ? 2 : 3);
+        if (!grace) this.glow(mx(ex), dmy(ey), er * 2.3, ORANGE, 26);
+        this.circle(mx(ex), dmy(ey), er, [12, 12, 16]);
+        this.circle(mx(ex), dmy(ey), er + 3, ORANGE, grace ? 2 : 3);
       }
     }
 
@@ -1542,18 +1621,18 @@ class App {
     for (let i = 0; i < d.hist.length; i += 2) {
       const f2 = (i / 2 + 1) / Math.max(1, d.hist.length / 2);
       const tp = d.hist[i];
-      this.circle(mx(tp[0]), my(tp[1]), ms(BALL_R * 0.7 * f2), BLUE);
+      this.circle(mx(tp[0]), dmy(tp[1]), ms(BALL_R * 0.7 * f2), speedActive ? CYAN : BLUE);
     }
-    const ballCol = d.hitFlash > 0 && Math.floor(d.hitFlash / 4) % 2 === 0 ? [255, 90, 90] : BLUE;
-    this.glow(mx(d.bx), my(d.by), ms(BALL_R) * 2.2, ballCol, 44);
-    this.circle(mx(d.bx), my(d.by), ms(BALL_R), ballCol);
-    this.circle(mx(d.bx), my(d.by), ms(BALL_R) + 3, WHITE, 2);
-    if (d.shieldOn) this.circle(mx(d.bx), my(d.by), ms(BALL_R) + 8, SHIELDC, 3);
+    const ballCol = d.hitFlash > 0 && Math.floor(d.hitFlash / 4) % 2 === 0 ? [255, 90, 90] : (speedActive ? CYAN : BLUE);
+    this.glow(mx(d.bx), dmy(d.by), ms(BALL_R) * 2.2, ballCol, 44);
+    this.circle(mx(d.bx), dmy(d.by), ms(BALL_R), ballCol);
+    this.circle(mx(d.bx), dmy(d.by), ms(BALL_R) + 3, WHITE, 2);
+    if (shieldActive) this.circle(mx(d.bx), dmy(d.by), ms(BALL_R) + 8, SHIELDC, 3);
 
     // ATAK dugmesi (gercek oyunla ayni konum) + tanitim aninda parlama
     {
-      const dcx = VIEW_W - 62, dcy = BAND_TOP + VIEW_H - 78, dr = 44;
-      const pulsing = d.frame >= 380 && d.frame < 430;
+      const dcx = VIEW_W - 62, dcy = DEMO_TOP + DEMO_ARENA_H - 78, dr = 44;
+      const pulsing = Math.abs(d.frame - d.dashFrame) < 45;
       ctx.fillStyle = "rgba(10,16,30,0.75)";
       ctx.beginPath(); ctx.arc(dcx, dcy, dr, 0, 7); ctx.fill();
       if (pulsing) this.glow(dcx, dcy, dr * 2, [120, 230, 150], 60 + 40 * Math.sin(d.frame / 3));
@@ -1563,24 +1642,38 @@ class App {
       this.text(this.T("dash_btn"), dcx, dcy, [120, 230, 150], { size: 18 });
     }
 
-    // ust: buyuk, okunakli aciklama paneli + GEC dugmesi (gercek can/skor gostermiyoruz - kafa karismasin)
-    const capH = 210;
-    ctx.fillStyle = "rgba(6,8,16,0.94)"; ctx.fillRect(0, 0, WIN_W, capH);
+    // ust: buyuk, okunakli aciklama bandi (arenanin USTUNE binmez, ayri kendi bandi)
+    const capH = DEMO_TOP;
+    ctx.fillStyle = "rgb(6,8,16)"; ctx.fillRect(0, 0, WIN_W, capH);
     ctx.fillStyle = "rgb(70,150,190)"; ctx.fillRect(0, capH - 3, WIN_W, 3);
-    this.text(this.T("demo_title"), WIN_W / 2, 26, CYAN, { size: 20 });
-    const lines = this.wrap(this.demoCaption(), WIN_W - 60, 30);
-    let cy = lines.length > 1 ? 84 : 110;
-    for (const line of lines) { this.text(line, WIN_W / 2, cy, [255, 220, 140], { size: 30 }); cy += 40; }
+    this.text(this.T("demo_title"), WIN_W / 2, 24, CYAN, { size: 19 });
+    const beat = this.demoActiveBeat();
+    const lines = this.wrap(this.T(beat.key), WIN_W - 60, 28);
+    let cy = lines.length > 1 ? 92 : 120;
+    for (const line of lines) { this.text(line, WIN_W / 2, cy, [255, 220, 140], { size: 28 }); cy += 38; }
+    // ilerleme cubugu: ne kadar kaldigini gosterir
+    const pw = WIN_W - 80;
+    ctx.fillStyle = "rgba(255,255,255,0.12)"; ctx.fillRect(40, capH - 16, pw, 5);
+    ctx.fillStyle = "rgb(120,200,235)"; ctx.fillRect(40, capH - 16, pw * Math.min(1, d.frame / d.total), 5);
     this.text(this.T("demo_skip"), this.demoSkipRect.x + this.demoSkipRect.w / 2,
       this.demoSkipRect.y + this.demoSkipRect.h / 2, [210, 220, 235], { size: 16 });
     ctx.strokeStyle = "rgba(150,165,190,0.7)"; ctx.lineWidth = 2;
     this._roundRect(this.demoSkipRect.x, this.demoSkipRect.y, this.demoSkipRect.w, this.demoSkipRect.h, 10);
     ctx.stroke();
 
-    // alt: kucuk "TANITIM" etiketi - gercek oyun degil izlenimini pekistirir
+    // alt bant
     ctx.fillStyle = "rgb(6,8,16)"; ctx.fillRect(0, WIN_H - BAND_BOT, WIN_W, BAND_BOT);
     ctx.fillStyle = "rgb(70,150,190)"; ctx.fillRect(0, WIN_H - BAND_BOT, WIN_W, 3);
     this.text(this.T("demo_title"), WIN_W / 2, WIN_H - BAND_BOT + 60, [140, 150, 170], { size: 16 });
+
+    // tanitim bitince: TEKRAR IZLE / OYUNA BASLA secim ekrani
+    if (d.finished) {
+      ctx.fillStyle = "rgba(0,0,0,0.72)"; ctx.fillRect(0, 0, WIN_W, WIN_H);
+      this.demoReplayRect = { x: WIN_W / 2 - 210, y: WIN_H / 2 - 30, w: 190, h: 70 };
+      this.demoStartRect = { x: WIN_W / 2 + 20, y: WIN_H / 2 - 30, w: 190, h: 70 };
+      this.button(this.demoReplayRect, this.T("demo_replay"), CYAN);
+      this.button(this.demoStartRect, this.T("demo_start"), [120, 230, 150]);
+    }
   }
 
   continueFromOver() {
@@ -1620,7 +1713,10 @@ class App {
     } else if (this.scene === "WON") {
       this.scene = "MENU";
     } else if (this.scene === "DEMO") {
-      if (this._inRect(x, y, this.demoSkipRect)) this.endDemo();
+      if (this.demo.finished) {
+        if (this.demoReplayRect && this._inRect(x, y, this.demoReplayRect)) this.startDemo();
+        else if (this.demoStartRect && this._inRect(x, y, this.demoStartRect)) this.start(1);
+      } else if (this._inRect(x, y, this.demoSkipRect)) this.endDemo();
     } else if (this.scene === "PLAY") {
       if (this.pauseBtnRect && this._inRect(x, y, this.pauseBtnRect)) { this.paused = !this.paused; return; }
       if (this.paused) {
@@ -1654,8 +1750,13 @@ class App {
         else if (e.code === "KeyM" || e.code === "Escape") this.scene = "MENU";
       } else if (this.scene === "WON" && (e.code === "Enter" || e.code === "Escape")) {
         this.scene = "MENU";
-      } else if (this.scene === "DEMO" && (e.code === "Enter" || e.code === "Space" || e.code === "Escape")) {
-        this.endDemo();
+      } else if (this.scene === "DEMO") {
+        if (this.demo.finished) {
+          if (e.code === "Enter" || e.code === "Space") this.start(1);
+          else if (e.code === "Escape") this.startDemo();
+        } else if (e.code === "Enter" || e.code === "Space" || e.code === "Escape") {
+          this.endDemo();
+        }
       }
       if (["ArrowUp","ArrowDown","ArrowLeft","ArrowRight","Space"].includes(e.code)) e.preventDefault();
     });
