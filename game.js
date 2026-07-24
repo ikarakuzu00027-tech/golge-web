@@ -145,9 +145,16 @@ const UI = {
     dash_ready: "SAĞ TIK/ATAK: HAZIR", dash_cd: "ATAK: {0}sn",
     dash_btn: "ATAK",
     pause_menu_btn: "ANA MENÜ",
-    hint1: "BU SENSİN - ok tuşları / fare ile hareket et",
-    hint2: "GÖLGEN 2.5 sn önceki halin - ONA DOKUNMA!",
-    hint3: "Yeşile dönünce GEÇİDE gir - yeni dalga!",
+    demo_title: "NASIL OYNANIR", demo_skip: "GEÇ »",
+    demo1: "BU SENSİN - bu topu sen kontrol edersin",
+    demo2: "Gölgen seni takip eder - 2.5 saniye önceki halin",
+    demo3: "SANA DOKUNURSA can kaybedersin!",
+    demo4: "Engellerden ve tehlikelerden kaçın",
+    demo5: "Gölge yaklaşırsa ATAK'a dokunup kaç!",
+    demo6: "Yıldızlar puan verir - ama her 10'da bir YENİ GÖLGE katılır!",
+    demo7: "Güçlendirmeler hayatta kalmana yardım eder",
+    demo8: "Parlayan GEÇİDE ulaş - yeni dalga başlar!",
+    demo9: "Hazır mısın? Haydi başlayalım!",
   },
   EN: {
     score: "SCORE", shadow: "SHADOW", ball: "BALL", chapter: "CHAPTER", wave: "WAVE",
@@ -173,9 +180,16 @@ const UI = {
     dash_ready: "RIGHT-CLICK/DASH: READY", dash_cd: "DASH: {0}s",
     dash_btn: "DASH",
     pause_menu_btn: "MAIN MENU",
-    hint1: "THIS IS YOU - move with arrows / mouse",
-    hint2: "YOUR SHADOW is you 2.5s ago - DON'T TOUCH IT!",
-    hint3: "Enter the GATE when it turns green - new wave!",
+    demo_title: "HOW TO PLAY", demo_skip: "SKIP »",
+    demo1: "THIS IS YOU - you control this ball",
+    demo2: "Your shadow follows you - it's you, 2.5 seconds ago",
+    demo3: "IF IT TOUCHES YOU, you lose a heart!",
+    demo4: "Avoid obstacles and hazards too",
+    demo5: "Getting chased? Tap ATAK to dash to safety!",
+    demo6: "Stars give points... but every 10 adds a NEW shadow!",
+    demo7: "Power-ups help you survive",
+    demo8: "Reach the glowing GATE to start a new wave!",
+    demo9: "Ready? Let's go!",
   },
 };
 
@@ -758,12 +772,6 @@ class App {
         if (g.frame === 480) g.powerups.push([400, 470, 3, 20 * FPS]);
       }
       if (g.wave === 4 && g.frame === 240) g.powerups.push([600, 520, 2, 20 * FPS]);
-    }
-
-    if (this.showIntroHints && g.wave === 1) {
-      if (g.frame === 20) this.note(this.T("hint1"));
-      if (g.frame === g.waveDelay() + 10) this.note(this.T("hint2"));
-      if (g.frame === g.waveDelay() + 200) { this.note(this.T("hint3")); this.showIntroHints = false; }
     }
 
     if (g.finaleT > 0) {
@@ -1403,13 +1411,165 @@ class App {
   start(chapter) {
     this.sfx.resume();
     this.sfx.play("click");
-    chapter = chapter || 1;
-    // ilk oyunda, sadece 1. bölümden başlarken: dünyayı durdurmayan, kendiliğinden kaybolan kısa ipuçları
-    this.showIntroHints = (chapter === 1 && !this.introSeen);
-    if (this.showIntroHints) { this.introSeen = true; this.saveNow(); }
-    this.g = new Game(chapter);
+    this.g = new Game(chapter || 1);
     this.paused = false;
     this.scene = "PLAY";
+  }
+
+  // OYNA'ya basınca: ilk kez oynayan biriyse önce otomatik "NASIL OYNANIR" gösterimi, sonra gerçek dalga 1
+  playPressed() {
+    this.sfx.resume();
+    if (!this.introSeen) this.startDemo();
+    else this.start(1);
+  }
+
+  // ============ NASIL OYNANIR: otomatik oynanan ~12sn'lik tanıtım (gerçek istatistik/ilerleme yok) ============
+  startDemo() {
+    this.scene = "DEMO";
+    this.demoSkipRect = { x: WIN_W - 110, y: 12, w: 98, h: 40 };
+    this.demo = {
+      frame: 0, len: 720,
+      hist: [], echoSpawns: [150],
+      obstacle: { x: 600, y: 850, r: 24 },
+      star: { x: 250, y: 750, got: false },
+      power: { x: 550, y: 400, got: false },
+      gate: { x: 400, y: 550, entered: false },
+      hitFlash: 0, dashFlash: 0, shieldOn: false, dashDone: false,
+      fired: {},
+    };
+  }
+
+  endDemo() {
+    this.introSeen = true;
+    this.saveNow();
+    this.start(1);
+  }
+
+  demoPos(t) {
+    return [400 + 220 * Math.sin(t * 0.018), 550 + 260 * Math.cos(t * 0.013)];
+  }
+
+  stepDemo() {
+    const d = this.demo;
+    const [bx, by] = this.demoPos(d.frame);
+    d.bx = bx; d.by = by;
+    d.hist.push([bx, by]);
+    if (d.hitFlash > 0) d.hitFlash--;
+    if (d.dashFlash > 0) d.dashFlash--;
+
+    const fireOnce = (name, frame, fn) => {
+      if (d.frame === frame && !d.fired[name]) { d.fired[name] = true; fn(); }
+    };
+    fireOnce("hit", 230, () => { this.sfx.play("hit"); d.hitFlash = 20; });
+    fireOnce("dash", 410, () => { this.sfx.play("dash"); d.dashFlash = 26; d.dashDone = true; });
+    fireOnce("star", 480, () => { this.sfx.play("star"); d.star.got = true; });
+    fireOnce("power", 560, () => { this.sfx.play("power"); d.power.got = true; d.shieldOn = true; });
+    fireOnce("gate", 670, () => { this.sfx.play("gate"); this.sfx.play("wave"); d.gate.entered = true; });
+
+    d.frame++;
+    if (d.frame >= d.len) this.endDemo();
+  }
+
+  demoCaption() {
+    const f = this.demo.frame;
+    if (f < 90) return this.T("demo1");
+    if (f < 220) return this.T("demo2");
+    if (f < 300) return this.T("demo3");
+    if (f < 380) return this.T("demo4");
+    if (f < 460) return this.T("demo5");
+    if (f < 540) return this.T("demo6");
+    if (f < 610) return this.T("demo7");
+    if (f < 690) return this.T("demo8");
+    return this.T("demo9");
+  }
+
+  drawDemo() {
+    const ctx = this.ctx;
+    const d = this.demo;
+    ctx.fillStyle = "rgb(6,8,16)"; ctx.fillRect(0, 0, WIN_W, WIN_H);
+    // arena (gercek oyunla ayni gradyan hissi, sade)
+    const top = [46, 58, 106], bot = ARENA_B;
+    for (let b = 0; b < 14; b++) {
+      const f = b / 13;
+      this.ctx.fillStyle = rgb(lerp3(top, bot, f));
+      ctx.fillRect(0, BAND_TOP + b * VIEW_H / 14, VIEW_W, VIEW_H / 14 + 1);
+    }
+
+    // gecit
+    const gcol = GREEN;
+    this.glow(mx(d.gate.x), my(d.gate.y), ms(TARGET_R) * 1.7, gcol, 38);
+    this.circle(mx(d.gate.x), my(d.gate.y), ms(TARGET_R), gcol, 4);
+    if (d.gate.entered) this.circle(mx(d.gate.x), my(d.gate.y), ms(TARGET_R) * 0.4, [200, 255, 220]);
+
+    // engel
+    this.orb(mx(d.obstacle.x), my(d.obstacle.y), ms(d.obstacle.r), GRAYOB);
+    this.circle(mx(d.obstacle.x), my(d.obstacle.y), ms(d.obstacle.r) + 2, [130, 200, 240], 2);
+
+    // yildiz
+    if (!d.star.got) {
+      this.glow(mx(d.star.x), my(d.star.y), ms(34), YELLOW, 36);
+      this.star(mx(d.star.x), my(d.star.y), ms(24), YELLOW);
+    }
+    // guclendirme (kalkan)
+    if (!d.power.got) {
+      this.glow(mx(d.power.x), my(d.power.y), ms(28), SHIELDC, 42);
+      this.circle(mx(d.power.x), my(d.power.y), ms(13), SHIELDC);
+      this.circle(mx(d.power.x), my(d.power.y), ms(17), SHIELDC, 2);
+    }
+
+    // golgenin izi + golge (gercek oyunla ayni gorsel dil)
+    for (const spawn of d.echoSpawns) {
+      const idx = d.frame - spawn;
+      if (idx >= 0 && idx < d.hist.length) {
+        const ex = d.hist[idx][0], ey = d.hist[idx][1];
+        const grace = idx < 45;
+        const er = ms(ECHO_R) * (grace ? 0.75 : 1);
+        if (!grace) this.glow(mx(ex), my(ey), er * 2.3, ORANGE, 26);
+        this.circle(mx(ex), my(ey), er, [12, 12, 16]);
+        this.circle(mx(ex), my(ey), er + 3, ORANGE, grace ? 2 : 3);
+      }
+    }
+
+    // iz + top
+    for (let i = 0; i < d.hist.length; i += 2) {
+      const f2 = (i / 2 + 1) / Math.max(1, d.hist.length / 2);
+      const tp = d.hist[i];
+      this.circle(mx(tp[0]), my(tp[1]), ms(BALL_R * 0.7 * f2), BLUE);
+    }
+    const ballCol = d.hitFlash > 0 && Math.floor(d.hitFlash / 4) % 2 === 0 ? [255, 90, 90] : BLUE;
+    this.glow(mx(d.bx), my(d.by), ms(BALL_R) * 2.2, ballCol, 44);
+    this.circle(mx(d.bx), my(d.by), ms(BALL_R), ballCol);
+    this.circle(mx(d.bx), my(d.by), ms(BALL_R) + 3, WHITE, 2);
+    if (d.shieldOn) this.circle(mx(d.bx), my(d.by), ms(BALL_R) + 8, SHIELDC, 3);
+
+    // ATAK dugmesi (gercek oyunla ayni konum) + tanitim aninda parlama
+    {
+      const dcx = VIEW_W - 62, dcy = BAND_TOP + VIEW_H - 78, dr = 44;
+      const pulsing = d.frame >= 380 && d.frame < 430;
+      ctx.fillStyle = "rgba(10,16,30,0.75)";
+      ctx.beginPath(); ctx.arc(dcx, dcy, dr, 0, 7); ctx.fill();
+      if (pulsing) this.glow(dcx, dcy, dr * 2, [120, 230, 150], 60 + 40 * Math.sin(d.frame / 3));
+      ctx.strokeStyle = pulsing ? "rgb(160,255,190)" : "rgb(120,230,150)";
+      ctx.lineWidth = pulsing ? 5 : 3;
+      ctx.beginPath(); ctx.arc(dcx, dcy, dr, 0, 7); ctx.stroke();
+      this.text(this.T("dash_btn"), dcx, dcy, [120, 230, 150], { size: 18 });
+    }
+
+    // ust: baslik + aciklama + GEC dugmesi (gercek can/skor gostermiyoruz - kafa karismasin)
+    ctx.fillStyle = "rgb(6,8,16)"; ctx.fillRect(0, 0, WIN_W, BAND_TOP);
+    ctx.fillStyle = "rgb(70,150,190)"; ctx.fillRect(0, BAND_TOP - 3, WIN_W, 3);
+    this.text(this.T("demo_title"), WIN_W / 2, 24, CYAN, { size: 18 });
+    this.text(this.demoCaption(), WIN_W / 2, 60, [235, 205, 125], { size: 17 });
+    this.text(this.T("demo_skip"), this.demoSkipRect.x + this.demoSkipRect.w / 2,
+      this.demoSkipRect.y + this.demoSkipRect.h / 2, [200, 210, 225], { size: 15 });
+    ctx.strokeStyle = "rgba(150,165,190,0.6)"; ctx.lineWidth = 2;
+    this._roundRect(this.demoSkipRect.x, this.demoSkipRect.y, this.demoSkipRect.w, this.demoSkipRect.h, 10);
+    ctx.stroke();
+
+    // alt: kucuk "TANITIM" etiketi - gercek oyun degil izlenimini pekistirir
+    ctx.fillStyle = "rgb(6,8,16)"; ctx.fillRect(0, WIN_H - BAND_BOT, WIN_W, BAND_BOT);
+    ctx.fillStyle = "rgb(70,150,190)"; ctx.fillRect(0, WIN_H - BAND_BOT, WIN_W, 3);
+    this.text(this.T("demo_title"), WIN_W / 2, WIN_H - BAND_BOT + 60, [140, 150, 170], { size: 16 });
   }
 
   continueFromOver() {
@@ -1439,7 +1599,7 @@ class App {
     if (this.scene === "MENU") {
       if (this._inRect(x, y, this.trRect)) { this.lang = "TR"; this.saveNow(); }
       else if (this._inRect(x, y, this.enRect)) { this.lang = "EN"; this.saveNow(); }
-      else if (y < 600) this.start(1);   // rehber listesine (asagida) tiklamak baslatmaz
+      else if (y < 600) this.playPressed();   // rehber listesine (asagida) tiklamak baslatmaz
     } else if (this.scene === "BREAK") {
       this.scene = "PLAY";
     } else if (this.scene === "OVER") {
@@ -1447,6 +1607,8 @@ class App {
       else if (this._inRect(x, y, this.overRestartRect)) this.start(1);
     } else if (this.scene === "WON") {
       this.scene = "MENU";
+    } else if (this.scene === "DEMO") {
+      if (this._inRect(x, y, this.demoSkipRect)) this.endDemo();
     } else if (this.scene === "PLAY") {
       if (this.pauseBtnRect && this._inRect(x, y, this.pauseBtnRect)) { this.paused = !this.paused; return; }
       if (this.paused) {
@@ -1463,7 +1625,7 @@ class App {
       this.keys[e.code] = true;
       this.sfx.resume();
       if (this.scene === "MENU") {
-        if (e.code === "Enter" || e.code === "Space") this.start(1);
+        if (e.code === "Enter" || e.code === "Space") this.playPressed();
         else if (e.code >= "Digit1" && e.code <= "Digit9") {
           const n = parseInt(e.code.slice(5), 10);
           if (n <= this.maxChapter) this.start(n);
@@ -1480,6 +1642,8 @@ class App {
         else if (e.code === "KeyM" || e.code === "Escape") this.scene = "MENU";
       } else if (this.scene === "WON" && (e.code === "Enter" || e.code === "Escape")) {
         this.scene = "MENU";
+      } else if (this.scene === "DEMO" && (e.code === "Enter" || e.code === "Space" || e.code === "Escape")) {
+        this.endDemo();
       }
       if (["ArrowUp","ArrowDown","ArrowLeft","ArrowRight","Space"].includes(e.code)) e.preventDefault();
     });
@@ -1540,11 +1704,13 @@ class App {
     else if (this.scene === "BREAK") this.drawBreak();
     else if (this.scene === "OVER") this.drawOver();
     else if (this.scene === "WON") this.drawWon();
+    else if (this.scene === "DEMO") this.drawDemo();
   }
 
   // sabit 60Hz mantik adimi (frame-sayimina dayali tum zamanlayicilar bu yuzden dogru kalir)
   update() {
     if (this.scene === "PLAY" && !this.paused) this.step();
+    else if (this.scene === "DEMO") this.stepDemo();
     if (this.scene === "MENU") this.sfx.updateMusic(this.sfx.menuMusic);
     else if (this.g) this.sfx.updateMusic(this.g.wave >= 10 ? this.sfx.gameMusicIntense : this.sfx.gameMusic);
     this.ticks += 1;
